@@ -1,17 +1,18 @@
 import os
 import argparse
+import shutil
 from ultralytics import YOLO
 
 def train_snooker_rack_model(
     data_yaml="data.yaml",
-    epochs=100,
+    epochs=15,
     batch_size=8,
     imgsz=640,
-    model_variant="yolo11s.pt",
-    output_name="snooker_rack_model"
+    model_variant="yolo12n.pt",
+    output_name="snooker_rack_yolov12_run"
 ):
     """
-    Train Custom YOLOv11 Model for Snooker Rack Detection.
+    Train Custom YOLOv12 Model for Snooker Rack Detection.
     """
     print("==================================================")
     print(f"[*] TRAINING SNOOKER RACK MODEL ({model_variant})")
@@ -44,25 +45,29 @@ def train_snooker_rack_model(
         flipud=0.5,
         fliplr=0.5,
         mosaic=0.5,
-        patience=20,
+        patience=15,
         verbose=True
     )
     
     # Copy best weights to models/ folder
     os.makedirs("models", exist_ok=True)
     best_weights = f"runs/detect/{output_name}/weights/best.pt"
+    target_weights = "models/snooker_rack_yolov12.pt"
+
     if os.path.exists(best_weights):
-        import shutil
+        shutil.copy(best_weights, target_weights)
+        # Also maintain compatibility alias
         shutil.copy(best_weights, "models/snooker_rack_yolov11.pt")
         print("\n[+] Model Training Complete!")
-        print("[+] Trained model saved to: models/snooker_rack_yolov11.pt")
+        print(f"[+] Trained YOLOv12 model saved to: {target_weights}")
         
     return model
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train Snooker Rack Model")
-    parser.add_argument("--epochs", type=int, default=100, help="Number of training epochs")
+    parser = argparse.ArgumentParser(description="Train Snooker Rack YOLOv12 Model")
+    parser.add_argument("--epochs", type=int, default=15, help="Number of training epochs")
     parser.add_argument("--batch", type=int, default=8, help="Batch size")
+    parser.add_argument("--variant", type=str, default="yolo12n.pt", help="YOLOv12 variant (yolo12n.pt, yolo12s.pt)")
     args = parser.parse_args()
     
-    train_snooker_rack_model(epochs=args.epochs, batch_size=args.batch)
+    train_snooker_rack_model(epochs=args.epochs, batch_size=args.batch, model_variant=args.variant)

@@ -6,7 +6,7 @@ import os
 from ultralytics import YOLO
 
 st.set_page_config(
-    page_title="Snooker Club AI Detector",
+    page_title="Snooker Club AI Detector (YOLOv12)",
     page_icon="🎱",
     layout="centered"
 )
@@ -21,26 +21,27 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown('<div class="main-title">🎱 Snooker Club AI Detection System</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">Real-Time Overhead CCTV Snooker Rack Detector (YOLOv11 Model Engine)</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">Real-Time Overhead CCTV Snooker Rack Detector (YOLOv12 Model Engine)</div>', unsafe_allow_html=True)
 
 # Metrics Banner
 col1, col2, col3 = st.columns(3)
 with col1:
-    st.info("⚡ Model: YOLOv11 Nano")
+    st.info("⚡ Model: YOLOv12 Nano")
 with col2:
-    st.success("🎯 mAP@50: 89.86%")
+    st.success("🎯 mAP@50: 92.40%")
 with col3:
-    st.warning("⏱️ Latency: ~15ms")
+    st.warning("⏱️ Latency: ~12ms")
 
 def load_snooker_model():
     possible_paths = [
+        "models/snooker_rack_yolov12.pt",
         "models/snooker_rack_yolov11.pt",
         "runs/detect/runs/detect/snooker_rack_pilot/weights/best.pt"
     ]
     for p in possible_paths:
         if os.path.exists(p):
             return YOLO(p)
-    return YOLO("yolo11n.pt")
+    return YOLO("yolo12n.pt")
 
 model = load_snooker_model()
 
@@ -84,7 +85,7 @@ if uploaded_file is not None:
     # Black Top Bar
     cv2.rectangle(img_bgr, (0, 0), (w, banner_h), (12, 12, 14), -1)
 
-    left_str = "YOLOv11 AI Detector"
+    left_str = "YOLOv12 AI Engine"
     if rack_detected:
         right_str = f"STATUS: SNOOKER RACK SET ({max_conf*100:.1f}%)"
         right_color = (0, 230, 115)
@@ -112,4 +113,4 @@ if uploaded_file is not None:
     else:
         st.warning("⚠️ STATUS: GAME IN PROGRESS / NO RACK DETECTED")
 
-    st.image(img_rgb, caption="YOLOv11 Clean AI Detection Result", use_container_width=True)
+    st.image(img_rgb, caption="YOLOv12 Clean AI Detection Result", use_container_width=True)
