@@ -22,23 +22,23 @@ st.markdown("""
         background: rgba(0, 230, 115, 0.15);
         border: 2px solid #00e676;
         border-radius: 12px;
-        padding: 16px 20px;
+        padding: 20px;
         text-align: center;
         margin-bottom: 20px;
     }
-    .status-box-set h2 { color: #00e676; margin: 0; font-size: 24px; font-weight: 700; }
-    .status-box-set p { color: #a7f3d0; margin-top: 5px; font-size: 14px; }
+    .status-box-set h2 { color: #00e676; margin: 0; font-size: 26px; font-weight: 700; }
+    .status-box-set p { color: #a7f3d0; margin-top: 6px; font-size: 15px; }
 
     .status-box-progress {
         background: rgba(255, 165, 0, 0.15);
         border: 2px solid #ffa726;
         border-radius: 12px;
-        padding: 16px 20px;
+        padding: 20px;
         text-align: center;
         margin-bottom: 20px;
     }
-    .status-box-progress h2 { color: #ffa726; margin: 0; font-size: 24px; font-weight: 700; }
-    .status-box-progress p { color: #fde68a; margin-top: 5px; font-size: 14px; }
+    .status-box-progress h2 { color: #ffa726; margin: 0; font-size: 26px; font-weight: 700; }
+    .status-box-progress p { color: #fde68a; margin-top: 6px; font-size: 15px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -77,29 +77,21 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    # Predict using YOLOv12 model weights with conf=0.15 and NMS iou=0.45
-    results = model.predict(img_bgr, conf=0.15, iou=0.45, verbose=False)
+    # Strict production threshold 0.40 (40%) to eliminate false detections
+    results = model.predict(img_bgr, conf=0.40, iou=0.45, verbose=False)
 
     rack_detected = False
     max_conf = 0.0
-    best_box = None
 
     for r in results:
         for box in r.boxes:
             conf = float(box.conf[0])
-            b = box.xyxy[0].cpu().numpy()
-            x1_c, y1_c, x2_c, y2_c = int(b[0]), int(b[1]), int(b[2]), int(b[3])
-            
             if conf > max_conf:
                 max_conf = conf
                 rack_detected = True
-                best_box = (x1_c, y1_c, x2_c, y2_c)
 
-    # 1. Render Clean Emerald Green bounding box on the image ONLY if a valid rack is detected
-    if rack_detected and best_box:
-        x1, y1, x2, y2 = best_box
-        box_thickness = max(3, int(min(w, h) / 180))
-        cv2.rectangle(img_bgr, (x1, y1), (x2, y2), (0, 230, 115), box_thickness)
+    # NOTE: Bounding Box Rectangles REMOVED as requested by user to keep output image 100% clean.
+    # Status is displayed purely in high-contrast text headers.
 
     # 2. Draw Top Black Header Bar
     banner_h = max(42, int(h * 0.08))
@@ -133,7 +125,7 @@ if uploaded_file is not None:
         st.markdown(f"""
         <div class="status-box-set">
             <h2>✅ RACK IS PRESENT (RACK SET)</h2>
-            <p>YOLOv12 Snooker Rack Detected (Confidence: {max_conf*100:.1f}%)</p>
+            <p>Snooker Rack Triangle Detected (Confidence: {max_conf*100:.1f}%)</p>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -144,4 +136,4 @@ if uploaded_file is not None:
         </div>
         """, unsafe_allow_html=True)
 
-    st.image(img_rgb, caption="YOLOv12 AI Detection Result", use_container_width=True)
+    st.image(img_rgb, caption="Clean Image Visual Result (No Box Overlays)", use_container_width=True)
