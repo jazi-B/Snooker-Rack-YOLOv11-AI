@@ -6,7 +6,7 @@ import os
 from ultralytics import YOLO
 
 st.set_page_config(
-    page_title="Snooker Club AI Detector",
+    page_title="Snooker Club AI Detector (YOLOv12)",
     page_icon="🎱",
     layout="centered"
 )
@@ -77,8 +77,8 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    # Predict with optimal threshold 0.15 and NMS iou=0.45
-    results = model.predict(img_bgr, conf=0.15, iou=0.45, verbose=False)
+    # Strict production confidence threshold 0.40 to reject weak background noise (e.g. 36.9% wall noise)
+    results = model.predict(img_bgr, conf=0.40, iou=0.45, verbose=False)
 
     rack_detected = False
     max_conf = 0.0
