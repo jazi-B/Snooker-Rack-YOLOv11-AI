@@ -77,8 +77,8 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    # Calibrated confidence threshold 0.25 for multi-perspective room & broadcast photos
-    results = model.predict(img_bgr, conf=0.25, iou=0.45, verbose=False)
+    # Predict using YOLOv12 model weights with conf=0.15 and NMS iou=0.45
+    results = model.predict(img_bgr, conf=0.15, iou=0.45, verbose=False)
 
     rack_detected = False
     max_conf = 0.0
@@ -90,18 +90,10 @@ if uploaded_file is not None:
             b = box.xyxy[0].cpu().numpy()
             x1_c, y1_c, x2_c, y2_c = int(b[0]), int(b[1]), int(b[2]), int(b[3])
             
-            box_w = x2_c - x1_c
-            box_h = y2_c - y1_c
-            if box_h == 0:
-                continue
-            aspect_ratio = box_w / float(box_h)
-
-            # Spatial table filter: snooker rack is located on the table surface (y1 > 15% image height)
-            if y1_c > int(h * 0.15):
-                if conf > max_conf:
-                    max_conf = conf
-                    rack_detected = True
-                    best_box = (x1_c, y1_c, x2_c, y2_c)
+            if conf > max_conf:
+                max_conf = conf
+                rack_detected = True
+                best_box = (x1_c, y1_c, x2_c, y2_c)
 
     # 1. Render Clean Emerald Green bounding box on the image ONLY if a valid rack is detected
     if rack_detected and best_box:
@@ -116,9 +108,9 @@ if uploaded_file is not None:
 
     cv2.rectangle(img_bgr, (0, 0), (w, banner_h), (12, 12, 14), -1)
 
-    left_str = "SNOOKER AI DETECTOR"
+    left_str = "SNOOKER AI DETECTOR (YOLOv12)"
     if rack_detected:
-        right_str = "STATUS: RACK SET (READY TO PLAY)"
+        right_str = f"STATUS: RACK SET ({max_conf*100:.1f}%)"
         right_color = (0, 230, 115)
     else:
         right_str = "STATUS: GAME IN PROGRESS (RACK BROKEN)"
@@ -141,7 +133,7 @@ if uploaded_file is not None:
         st.markdown(f"""
         <div class="status-box-set">
             <h2>✅ RACK IS PRESENT (RACK SET)</h2>
-            <p>Snooker Rack Triangle Detected (Confidence: {max_conf*100:.1f}%)</p>
+            <p>YOLOv12 Snooker Rack Detected (Confidence: {max_conf*100:.1f}%)</p>
         </div>
         """, unsafe_allow_html=True)
     else:
@@ -152,4 +144,4 @@ if uploaded_file is not None:
         </div>
         """, unsafe_allow_html=True)
 
-    st.image(img_rgb, caption="AI Detection Visual Result", use_container_width=True)
+    st.image(img_rgb, caption="YOLOv12 AI Detection Result", use_container_width=True)
