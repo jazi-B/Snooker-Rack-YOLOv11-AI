@@ -77,8 +77,8 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    # Predict with threshold 0.20 and NMS iou=0.45
-    results = model.predict(img_bgr, conf=0.20, iou=0.45, verbose=False)
+    # Calibrated confidence threshold 0.25 for multi-perspective room & broadcast photos
+    results = model.predict(img_bgr, conf=0.25, iou=0.45, verbose=False)
 
     rack_detected = False
     max_conf = 0.0
@@ -96,10 +96,8 @@ if uploaded_file is not None:
                 continue
             aspect_ratio = box_w / float(box_h)
 
-            # Filter out wall/background noise (aspect ratio check & table position check)
-            # A real snooker rack triangle is horizontal/compact (0.7 <= aspect_ratio <= 2.8)
-            # and should not cover the top wall background
-            if 0.7 <= aspect_ratio <= 2.8 and y1_c > int(h * 0.15):
+            # Spatial table filter: snooker rack is located on the table surface (y1 > 15% image height)
+            if y1_c > int(h * 0.15):
                 if conf > max_conf:
                     max_conf = conf
                     rack_detected = True
