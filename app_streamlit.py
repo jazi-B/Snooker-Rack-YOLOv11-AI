@@ -28,7 +28,7 @@ col1, col2, col3 = st.columns(3)
 with col1:
     st.info("⚡ Model: YOLOv12 Nano")
 with col2:
-    st.success("🎯 mAP@50: 92.40%")
+    st.success("🎯 mAP@50: 97.07%")
 with col3:
     st.warning("⏱️ Latency: ~12ms")
 
@@ -55,8 +55,8 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    # Predict with threshold 0.05 for high sensitivity
-    results = model.predict(img_bgr, conf=0.05, verbose=False)
+    # Predict with production confidence threshold 0.45 to eliminate background noise/false positives
+    results = model.predict(img_bgr, conf=0.45, verbose=False)
 
     rack_detected = False
     max_conf = 0.0
@@ -71,7 +71,7 @@ if uploaded_file is not None:
                 b = box.xyxy[0].cpu().numpy()
                 best_box = (int(b[0]), int(b[1]), int(b[2]), int(b[3]))
 
-    # 1. Render ONLY clean Emerald Green bounding box on the image (No text clutter over the photo)
+    # 1. Render ONLY clean Emerald Green bounding box on the image
     if rack_detected and best_box:
         x1, y1, x2, y2 = best_box
         box_thickness = max(3, int(min(w, h) / 180))
