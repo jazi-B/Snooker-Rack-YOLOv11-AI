@@ -77,8 +77,8 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    # Strict production confidence threshold 0.40 to reject weak background noise (e.g. 36.9% wall noise)
-    results = model.predict(img_bgr, conf=0.40, iou=0.45, verbose=False)
+    # Predict with threshold 0.20 and NMS iou=0.45
+    results = model.predict(img_bgr, conf=0.20, iou=0.45, verbose=False)
 
     rack_detected = False
     max_conf = 0.0
@@ -87,13 +87,25 @@ if uploaded_file is not None:
     for r in results:
         for box in r.boxes:
             conf = float(box.conf[0])
-            if conf > max_conf:
-                max_conf = conf
-                rack_detected = True
-                b = box.xyxy[0].cpu().numpy()
-                best_box = (int(b[0]), int(b[1]), int(b[2]), int(b[3]))
+            b = box.xyxy[0].cpu().numpy()
+            x1_c, y1_c, x2_c, y2_c = int(b[0]), int(b[1]), int(b[2]), int(b[3])
+            
+            box_w = x2_c - x1_c
+            box_h = y2_c - y1_c
+            if box_h == 0:
+                continue
+            aspect_ratio = box_w / float(box_h)
 
-    # 1. Render Clean Emerald Green bounding box on the image if rack is detected
+            # Filter out wall/background noise (aspect ratio check & table position check)
+            # A real snooker rack triangle is horizontal/compact (0.7 <= aspect_ratio <= 2.8)
+            # and should not cover the top wall background
+            if 0.7 <= aspect_ratio <= 2.8 and y1_c > int(h * 0.15):
+                if conf > max_conf:
+                    max_conf = conf
+                    rack_detected = True
+                    best_box = (x1_c, y1_c, x2_c, y2_c)
+
+    # 1. Render Clean Emerald Green bounding box on the image ONLY if a valid rack is detected
     if rack_detected and best_box:
         x1, y1, x2, y2 = best_box
         box_thickness = max(3, int(min(w, h) / 180))
