@@ -17,7 +17,6 @@ st.markdown("""
     .stApp { background-color: #0b0f19; color: #f3f4f6; }
     .main-title { text-align: center; font-size: 32px; font-weight: 700; color: #00e676; margin-bottom: 5px; }
     .sub-title { text-align: center; font-size: 14px; color: #9ca3af; margin-bottom: 25px; }
-    .badge { background: #161f31; padding: 6px 14px; border-radius: 20px; font-weight: 600; color: #00e676; border: 1px solid #00e676; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -71,14 +70,39 @@ if uploaded_file is not None:
                 b = box.xyxy[0].cpu().numpy()
                 best_box = (int(b[0]), int(b[1]), int(b[2]), int(b[3]))
 
-    # Render bounding box
+    # 1. Render ONLY clean Emerald Green bounding box on the image (No text clutter over the photo)
     if rack_detected and best_box:
         x1, y1, x2, y2 = best_box
         box_thickness = max(3, int(min(w, h) / 180))
         cv2.rectangle(img_bgr, (x1, y1), (x2, y2), (0, 230, 115), box_thickness)
-        
-        lbl = f"SNOOKER RACK: {max_conf*100:.1f}%"
-        cv2.putText(img_bgr, lbl, (x1, max(y1 - 10, 25)), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 230, 115), 2)
+
+    # 2. Draw Top Black Header Banner (All text info clean inside top black bar)
+    banner_h = max(42, int(h * 0.08))
+    font_scale = min(0.7, max(0.45, w / 850.0))
+    thickness = 2 if font_scale > 0.5 else 1
+
+    # Black Top Bar
+    cv2.rectangle(img_bgr, (0, 0), (w, banner_h), (12, 12, 14), -1)
+
+    left_str = "YOLOv11 AI Detector"
+    if rack_detected:
+        right_str = f"STATUS: SNOOKER RACK SET ({max_conf*100:.1f}%)"
+        right_color = (0, 230, 115)
+    else:
+        right_str = "STATUS: GAME IN PROGRESS / NO RACK"
+        right_color = (0, 165, 255)
+
+    (w_l, h_l), _ = cv2.getTextSize(left_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+    (w_r, h_r), _ = cv2.getTextSize(right_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+
+    y_pos = int(banner_h / 2.0 + h_l / 2.0)
+
+    # Left Title Text
+    cv2.putText(img_bgr, left_str, (15, y_pos), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness)
+
+    # Right Status Text
+    right_x = max(w_l + 25, w - w_r - 15)
+    cv2.putText(img_bgr, right_str, (int(right_x), y_pos), cv2.FONT_HERSHEY_SIMPLEX, font_scale, right_color, thickness)
 
     # Convert back to RGB for display
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
@@ -88,4 +112,4 @@ if uploaded_file is not None:
     else:
         st.warning("⚠️ STATUS: GAME IN PROGRESS / NO RACK DETECTED")
 
-    st.image(img_rgb, caption="YOLOv11 AI Detection Result", use_container_width=True)
+    st.image(img_rgb, caption="YOLOv11 Clean AI Detection Result", use_container_width=True)

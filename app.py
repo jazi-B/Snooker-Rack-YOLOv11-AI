@@ -45,21 +45,11 @@ def draw_dynamic_hud(img, rack_detected, max_conf, box_coords=None):
     font_scale = min(0.7, max(0.4, w / 900.0))
     thickness = 2 if font_scale > 0.5 else 1
     
-    # 1. Draw Bounding Box if Rack Detected
+    # 1. Draw Bounding Box if Rack Detected (Clean Emerald Green Box)
     if rack_detected and box_coords:
         x1, y1, x2, y2 = box_coords
-        box_thickness = max(2, int(min(w, h) / 200))
-        
-        # Emerald Green bounding box
+        box_thickness = max(2, int(min(w, h) / 180))
         cv2.rectangle(img, (x1, y1), (x2, y2), (0, 230, 115), box_thickness)
-
-        # Label tag above bounding box
-        label_text = f"SNOOKER RACK: {max_conf:.2f}"
-        (w_lbl, h_lbl), _ = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
-        
-        lbl_y1 = max(y1 - w_lbl - 5, 0) if y1 - 30 < 0 else y1 - h_lbl - 12
-        cv2.rectangle(img, (x1, int(lbl_y1)), (x1 + w_lbl + 10, y1), (0, 230, 115), -1)
-        cv2.putText(img, label_text, (x1 + 5, y1 - 6), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 0, 0), thickness)
 
     # 2. Draw Top HUD Banner (Clean & Non-overlapping)
     banner_h = max(36, int(h * 0.08))
