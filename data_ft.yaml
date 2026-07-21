@@ -1,0 +1,5 @@
+path: C:/Users/m_jaz/Desktop/Snooker/dataset_finetune
+train: images/train
+val: images/train
+names:
+  0: snooker_rack
