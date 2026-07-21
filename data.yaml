@@ -1,0 +1,11 @@
+# YOLOv11 Data Configuration for Snooker Rack Detection
+
+# Absolute paths or paths relative to dataset directory
+path: ./dataset # root dataset directory
+train: images/train
+val: images/val
+test: images/test # optional
+
+# Classes
+names:
+  0: snooker_rack

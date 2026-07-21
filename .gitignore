@@ -1,0 +1,22 @@
+# Heavy Model Weights & Datasets
+*.pt
+dataset/
+runs/
+*.mp4
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Environment
+.env
+venv/
+env/
+.vscode/
+.idea/
+
+# Windows
+Thumbs.db
+Desktop.ini
