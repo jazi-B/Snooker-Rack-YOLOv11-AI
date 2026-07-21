@@ -55,8 +55,8 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    # Predict with production confidence threshold 0.45 to eliminate background noise/false positives
-    results = model.predict(img_bgr, conf=0.45, verbose=False)
+    # Predict with optimal confidence 0.15 and NMS iou=0.45 for high precision & sensitivity
+    results = model.predict(img_bgr, conf=0.15, iou=0.45, verbose=False)
 
     rack_detected = False
     max_conf = 0.0

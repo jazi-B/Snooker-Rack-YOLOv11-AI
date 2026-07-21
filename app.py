@@ -211,8 +211,8 @@ def predict_api():
     if img is None:
         return jsonify({'success': False, 'error': 'Invalid image file'})
 
-    # Predict with production confidence threshold 0.45 to eliminate false positives
-    results = model.predict(img, conf=0.45, verbose=False)
+    # Predict with optimal confidence threshold 0.15 and NMS iou=0.45
+    results = model.predict(img, conf=0.15, iou=0.45, verbose=False)
 
     rack_detected = False
     max_conf = 0.0
