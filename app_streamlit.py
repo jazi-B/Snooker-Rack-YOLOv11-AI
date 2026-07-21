@@ -33,14 +33,17 @@ with col2:
 with col3:
     st.warning("⏱️ Latency: ~15ms")
 
-@st.cache_resource
-def load_model():
-    weights_path = "models/snooker_rack_yolov11.pt"
-    if not os.path.exists(weights_path):
-        weights_path = "yolo11n.pt"
-    return YOLO(weights_path)
+def load_snooker_model():
+    possible_paths = [
+        "models/snooker_rack_yolov11.pt",
+        "runs/detect/runs/detect/snooker_rack_pilot/weights/best.pt"
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            return YOLO(p)
+    return YOLO("yolo11n.pt")
 
-model = load_model()
+model = load_snooker_model()
 
 uploaded_file = st.file_uploader("Upload a Snooker Table Image", type=["jpg", "jpeg", "png"])
 
@@ -51,7 +54,9 @@ if uploaded_file is not None:
     img_bgr = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
 
     h, w, _ = img_bgr.shape
-    results = model.predict(img_bgr, conf=0.15, verbose=False)
+    
+    # Predict with threshold 0.05 for high sensitivity
+    results = model.predict(img_bgr, conf=0.05, verbose=False)
 
     rack_detected = False
     max_conf = 0.0
@@ -72,7 +77,7 @@ if uploaded_file is not None:
         box_thickness = max(3, int(min(w, h) / 180))
         cv2.rectangle(img_bgr, (x1, y1), (x2, y2), (0, 230, 115), box_thickness)
         
-        lbl = f"SNOOKER RACK: {max_conf:.2f}"
+        lbl = f"SNOOKER RACK: {max_conf*100:.1f}%"
         cv2.putText(img_bgr, lbl, (x1, max(y1 - 10, 25)), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 230, 115), 2)
 
     # Convert back to RGB for display
