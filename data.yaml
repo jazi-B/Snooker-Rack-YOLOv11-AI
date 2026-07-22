@@ -1,10 +1,10 @@
-# YOLOv11 Data Configuration for Snooker Rack Detection
+# YOLOv12 Data Configuration for Snooker Rack Detection
 
-# Absolute paths or paths relative to dataset directory
-path: ./dataset # root dataset directory
-train: images/train
-val: images/val
-test: images/test # optional
+# Absolute paths or paths relative to current execution directory
+path: .
+train: dataset/images/train
+val: dataset/images/val
+test: dataset/images/test
 
 # Classes
 names:

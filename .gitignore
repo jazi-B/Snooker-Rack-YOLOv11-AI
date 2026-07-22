@@ -1,6 +1,5 @@
 # Heavy Model Weights & Datasets
 *.pt
-dataset/
 runs/
 *.mp4
 
