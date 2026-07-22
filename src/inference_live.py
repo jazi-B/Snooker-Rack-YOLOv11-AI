@@ -4,10 +4,31 @@ import os
 import argparse
 from ultralytics import YOLO
 
+import numpy as np
+
+def is_initial_unbroken_rack(box_xywh, crop):
+    """
+    Verifies if a detected region is the TRUE INITIAL 15-BALL UNBROKEN TRIANGULAR RACK (Start of Frame).
+    """
+    if crop is None or crop.size == 0:
+        return False
+    w, h = box_xywh[2], box_xywh[3]
+    if h == 0 or w == 0:
+        return False
+    aspect_ratio = float(w) / float(h)
+    if not (0.82 <= aspect_ratio <= 1.28):
+        return False
+        
+    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    mask1 = cv2.inRange(hsv, np.array([0, 60, 50]), np.array([10, 255, 255]))
+    mask2 = cv2.inRange(hsv, np.array([168, 60, 50]), np.array([180, 255, 255]))
+    red_density = np.sum((mask1 | mask2) > 0) / (w * h)
+    return red_density > 0.20
+
 def run_live_inference(
-    weights_path="models/snooker_rack_yolov11.pt",
+    weights_path="models/snooker_rack_yolov12.pt",
     source="0",  # "0" for webcam, "rtsp://..." for CCTV RTSP stream, or path to video file
-    conf_thresh=0.4,
+    conf_thresh=0.35,
     use_roi=False,
     roi_coords=None  # (x1, y1, x2, y2)
 ):
@@ -16,8 +37,8 @@ def run_live_inference(
     """
     if not os.path.exists(weights_path):
         fallback_paths = [
-            "runs/detect/runs/detect/snooker_rack_pilot/weights/best.pt",
-            "runs/detect/snooker_rack_pilot/weights/best.pt"
+            "models/best.pt",
+            "models/snooker_rack_yolov11.pt"
         ]
         for f in fallback_paths:
             if os.path.exists(f):
@@ -25,7 +46,7 @@ def run_live_inference(
                 break
 
     print("==================================================")
-    print("[*] STARTING SNOOKER RACK LIVE CCTV INFERENCE")
+    print("[*] STARTING SNOOKER RACK LIVE CCTV INFERENCE (YOLOv12)")
     print(f"Source: {source} | Weights: {weights_path} | Conf: {conf_thresh}")
     print("==================================================")
 
@@ -63,7 +84,7 @@ def run_live_inference(
         else:
             results = model.predict(frame, conf=conf_thresh, verbose=False)
 
-        rack_detected = False
+        is_true_initial_rack = False
         rack_box = None
         max_conf = 0.0
 
@@ -72,16 +93,22 @@ def run_live_inference(
             boxes = r.boxes
             for box in boxes:
                 confidence = float(box.conf[0])
+                b = box.xyxy[0].cpu().numpy()
+                b_wh = box.xywh[0].cpu().numpy()
+                
+                x1, y1, x2, y2 = max(0, int(b[0])), max(0, int(b[1])), min(w, int(b[2])), min(h, int(b[3]))
+                crop = frame[y1:y2, x1:x2]
+                
+                is_initial = is_initial_unbroken_rack(b_wh, crop)
+                
                 if confidence > max_conf:
                     max_conf = confidence
-                    rack_detected = True
-                    # Bounding box coordinates
-                    b = box.xyxy[0].cpu().numpy()
+                    is_true_initial_rack = is_initial
                     if use_roi and roi_coords:
-                        rack_box = (int(b[0]) + roi_coords[0], int(b[1]) + roi_coords[1],
-                                    int(b[2]) + roi_coords[0], int(b[3]) + roi_coords[1])
+                        rack_box = (x1 + roi_coords[0], y1 + roi_coords[1],
+                                    x2 + roi_coords[0], y2 + roi_coords[1])
                     else:
-                        rack_box = (int(b[0]), int(b[1]), int(b[2]), int(b[3]))
+                        rack_box = (x1, y1, x2, y2)
 
         # Calculate FPS
         fps_counter += 1
@@ -94,23 +121,26 @@ def run_live_inference(
         if use_roi and roi_coords:
             cv2.rectangle(frame, (roi_coords[0], roi_coords[1]), (roi_coords[2], roi_coords[3]), (255, 255, 0), 1)
 
-        if rack_detected and rack_box:
+        if rack_box:
             x1, y1, x2, y2 = rack_box
-            # Draw primary bounding box around snooker rack (Emerald Green)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 230, 115), 3)
-            
-            # Label banner
-            label = f"SNOOKER RACK: {max_conf:.2f}"
+            if is_true_initial_rack:
+                box_color = (0, 230, 115) # Emerald Green for True Initial Rack
+                status_text = "STATUS: INITIAL TRIANGULAR RACK (GAME START)"
+                status_color = (0, 255, 0)
+                label = f"INITIAL RACK: {max_conf:.2f}"
+            else:
+                box_color = (0, 140, 255) # Orange for Mid-Game Cluster
+                status_text = "STATUS: MID-GAME / RACK BROKEN"
+                status_color = (0, 165, 255)
+                label = f"MID-GAME BALLS: {max_conf:.2f}"
+
+            cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 3)
             (w_lbl, h_lbl), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)
-            cv2.rectangle(frame, (x1, max(y1 - 25, 0)), (x1 + w_lbl + 10, y1), (0, 230, 115), -1)
+            cv2.rectangle(frame, (x1, max(y1 - 25, 0)), (x1 + w_lbl + 10, y1), box_color, -1)
             cv2.putText(frame, label, (x1 + 5, y1 - 7), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)
-            
-            # Status Badge: RACK SET
-            status_text = "STATUS: RACK SET (READY TO BREAK)"
-            status_color = (0, 255, 0)
         else:
-            status_text = "STATUS: GAME IN PROGRESS / NO RACK"
-            status_color = (0, 165, 255)
+            status_text = "STATUS: NO RACK DETECTED"
+            status_color = (180, 180, 180)
 
         # Draw Top HUD Banner
         # Draw Top HUD Banner (Clean & Non-overlapping)

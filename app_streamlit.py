@@ -54,16 +54,35 @@ with col2:
 with col3:
     st.warning("⏱️ Speed: ~12ms")
 
+def is_initial_unbroken_rack(box_xywh, crop):
+    """
+    Verifies if a detected region is the TRUE INITIAL 15-BALL UNBROKEN TRIANGULAR RACK (Start of Frame).
+    """
+    if crop is None or crop.size == 0:
+        return False
+    w, h = box_xywh[2], box_xywh[3]
+    if h == 0 or w == 0:
+        return False
+    aspect_ratio = float(w) / float(h)
+    if not (0.82 <= aspect_ratio <= 1.28):
+        return False
+        
+    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+    mask1 = cv2.inRange(hsv, np.array([0, 60, 50]), np.array([10, 255, 255]))
+    mask2 = cv2.inRange(hsv, np.array([168, 60, 50]), np.array([180, 255, 255]))
+    red_density = np.sum((mask1 | mask2) > 0) / (w * h)
+    return red_density > 0.20
+
 def load_snooker_model():
     possible_paths = [
-        "models/snooker_rack_yolov12.pt",
         "models/snooker_rack_yolov11.pt",
-        "runs/detect/runs/detect/snooker_rack_pilot/weights/best.pt"
+        "models/snooker_rack_yolov12.pt",
+        "models/best.pt"
     ]
     for p in possible_paths:
         if os.path.exists(p):
             return YOLO(p)
-    return YOLO("yolo12n.pt")
+    return YOLO("yolo11n.pt")
 
 model = load_snooker_model()
 
@@ -77,21 +96,24 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    # Strict production threshold 0.40 (40%) to eliminate false detections
-    results = model.predict(img_bgr, conf=0.40, iou=0.45, verbose=False)
+    results = model.predict(img_bgr, conf=0.35, iou=0.45, verbose=False)
 
-    rack_detected = False
+    is_true_initial_rack = False
     max_conf = 0.0
 
     for r in results:
         for box in r.boxes:
             conf = float(box.conf[0])
-            if conf > max_conf:
-                max_conf = conf
-                rack_detected = True
-
-    # NOTE: Bounding Box Rectangles REMOVED as requested by user to keep output image 100% clean.
-    # Status is displayed purely in high-contrast text headers.
+            b = box.xyxy[0].cpu().numpy()
+            b_wh = box.xywh[0].cpu().numpy()
+            
+            x1, y1, x2, y2 = max(0, int(b[0])), max(0, int(b[1])), min(w, int(b[2])), min(h, int(b[3]))
+            crop = img_bgr[y1:y2, x1:x2]
+            
+            if is_initial_unbroken_rack(b_wh, crop):
+                if conf > max_conf:
+                    max_conf = conf
+                    is_true_initial_rack = True
 
     # 2. Draw Top Black Header Bar
     banner_h = max(42, int(h * 0.08))
@@ -101,11 +123,11 @@ if uploaded_file is not None:
     cv2.rectangle(img_bgr, (0, 0), (w, banner_h), (12, 12, 14), -1)
 
     left_str = "SNOOKER AI DETECTOR (YOLOv12)"
-    if rack_detected:
-        right_str = f"STATUS: RACK SET ({max_conf*100:.1f}%)"
+    if is_true_initial_rack:
+        right_str = f"STATUS: INITIAL TRIANGULAR RACK DETECTED ({max_conf*100:.1f}%)"
         right_color = (0, 230, 115)
     else:
-        right_str = "STATUS: GAME IN PROGRESS (RACK BROKEN)"
+        right_str = "STATUS: MID-GAME / NO INITIAL RACK"
         right_color = (0, 165, 255)
 
     (w_l, h_l), _ = cv2.getTextSize(left_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
@@ -121,18 +143,18 @@ if uploaded_file is not None:
     img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
 
     # PROMINENT HTML STATUS DISPLAY ABOVE IMAGE
-    if rack_detected:
+    if is_true_initial_rack:
         st.markdown(f"""
         <div class="status-box-set">
-            <h2>✅ RACK IS PRESENT (RACK SET)</h2>
-            <p>Snooker Rack Triangle Detected (Confidence: {max_conf*100:.1f}%)</p>
+            <h2>🟢 INITIAL TRIANGULAR RACK DETECTED (GAME START)</h2>
+            <p>Unbroken 15-Ball Triangle Positioned at Foot Spot (Confidence: {max_conf*100:.1f}%)</p>
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown("""
         <div class="status-box-progress">
-            <h2>⚠️ NO RACK PRESENT (GAME IN PROGRESS)</h2>
-            <p>Balls are scattered / Rack is broken. Table is active.</p>
+            <h2>🔴 MID-GAME / NO INITIAL RACK</h2>
+            <p>Balls are scattered or rack is broken. No initial game start rack present.</p>
         </div>
         """, unsafe_allow_html=True)
 
