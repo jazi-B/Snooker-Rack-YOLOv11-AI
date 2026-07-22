@@ -54,30 +54,38 @@ with col2:
 with col3:
     st.warning("⏱️ Speed: ~12ms")
 
-def is_initial_unbroken_rack(box_xywh, crop):
+def is_initial_unbroken_rack(box_xywh, crop, conf, img_w, img_h):
     """
     Verifies if a detected region is the TRUE INITIAL 15-BALL UNBROKEN TRIANGULAR RACK.
     Supports both overhead CCTV angles and TV broadcast side angles.
-    Rejects scattered mid-game balls.
+    Strictly rejects scattered mid-game balls and loose clusters.
     """
     if crop is None or crop.size == 0:
         return False
-    w, h = box_xywh[2], box_xywh[3]
-    if h == 0 or w == 0:
+    bw, bh = box_xywh[2], box_xywh[3]
+    if bh == 0 or bw == 0:
         return False
-    aspect_ratio = float(w) / float(h)
+    aspect_ratio = float(bw) / float(bh)
+    area_ratio = (bw * bh) / (img_w * img_h)
     
-    # Aspect ratio check for snooker racks (overhead CCTV & broadcast side angles)
-    if not (0.45 <= aspect_ratio <= 2.20):
+    if not (0.50 <= aspect_ratio <= 2.25):
         return False
         
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
     mask1 = cv2.inRange(hsv, np.array([0, 35, 30]), np.array([18, 255, 255]))
     mask2 = cv2.inRange(hsv, np.array([155, 35, 30]), np.array([180, 255, 255]))
     red_pixels = np.sum((mask1 | mask2) > 0)
-    red_density = red_pixels / (w * h)
+    red_density = red_pixels / (bw * bh)
     
-    return red_density >= 0.04
+    # Case A: Cropped photo of rack (covers almost full image)
+    if area_ratio >= 0.80 and conf >= 0.85 and red_density >= 0.05:
+        return True
+        
+    # Case B: Standard table view rack
+    if conf >= 0.50 and red_density >= 0.10:
+        return True
+        
+    return False
 
 def load_snooker_model():
     possible_paths = [
@@ -116,8 +124,7 @@ if uploaded_file is not None:
             x1, y1, x2, y2 = max(0, int(b[0])), max(0, int(b[1])), min(w, int(b[2])), min(h, int(b[3]))
             crop = img_bgr[y1:y2, x1:x2]
             
-            # Verify if rack detected
-            if is_initial_unbroken_rack(b_wh, crop):
+            if is_initial_unbroken_rack(b_wh, crop, conf, w, h):
                 if conf > max_conf:
                     max_conf = conf
                     is_true_initial_rack = True
@@ -133,15 +140,14 @@ if uploaded_file is not None:
     banner_h = max(42, int(h * 0.08))
     font_scale = min(0.7, max(0.45, w / 850.0))
     thickness = 2 if font_scale > 0.5 else 1
-
     cv2.rectangle(img_bgr, (0, 0), (w, banner_h), (12, 12, 14), -1)
 
-    left_str = "SNOOKER AI DETECTOR (YOLOv12)"
+    left_str = "SNOOKER AI DETECTOR"
     if is_true_initial_rack:
-        right_str = f"STATUS: INITIAL TRIANGULAR RACK DETECTED ({max_conf*100:.1f}%)"
+        right_str = f"STATUS: INITIAL RACK DETECTED ({max_conf*100:.1f}%)"
         right_color = (0, 230, 115)
     else:
-        right_str = "STATUS: MID-GAME / NO INITIAL RACK"
+        right_str = "STATUS: SCATTERED / IN-GAME BALLS"
         right_color = (0, 165, 255)
 
     (w_l, h_l), _ = cv2.getTextSize(left_str, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
@@ -149,7 +155,6 @@ if uploaded_file is not None:
 
     y_pos = int(banner_h / 2.0 + h_l / 2.0)
     cv2.putText(img_bgr, left_str, (15, y_pos), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness)
-
     right_x = max(w_l + 25, w - w_r - 15)
     cv2.putText(img_bgr, right_str, (int(right_x), y_pos), cv2.FONT_HERSHEY_SIMPLEX, font_scale, right_color, thickness)
 

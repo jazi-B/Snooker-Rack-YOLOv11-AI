@@ -6,29 +6,38 @@ from ultralytics import YOLO
 
 import numpy as np
 
-def is_initial_unbroken_rack(box_xywh, crop):
+def is_initial_unbroken_rack(box_xywh, crop, conf, img_w, img_h):
     """
     Verifies if a detected region is the TRUE INITIAL 15-BALL UNBROKEN TRIANGULAR RACK.
     Supports both overhead CCTV angles and TV broadcast side angles.
-    Rejects scattered mid-game balls.
+    Strictly rejects scattered mid-game balls and loose clusters.
     """
     if crop is None or crop.size == 0:
         return False
-    w, h = box_xywh[2], box_xywh[3]
-    if h == 0 or w == 0:
+    bw, bh = box_xywh[2], box_xywh[3]
+    if bh == 0 or bw == 0:
         return False
-    aspect_ratio = float(w) / float(h)
+    aspect_ratio = float(bw) / float(bh)
+    area_ratio = (bw * bh) / (img_w * img_h)
     
-    if not (0.45 <= aspect_ratio <= 2.20):
+    if not (0.50 <= aspect_ratio <= 2.25):
         return False
         
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
     mask1 = cv2.inRange(hsv, np.array([0, 35, 30]), np.array([18, 255, 255]))
     mask2 = cv2.inRange(hsv, np.array([155, 35, 30]), np.array([180, 255, 255]))
     red_pixels = np.sum((mask1 | mask2) > 0)
-    red_density = red_pixels / (w * h)
+    red_density = red_pixels / (bw * bh)
     
-    return red_density >= 0.04
+    # Case A: Cropped photo of rack (covers almost full image)
+    if area_ratio >= 0.80 and conf >= 0.85 and red_density >= 0.05:
+        return True
+        
+    # Case B: Standard table view rack
+    if conf >= 0.50 and red_density >= 0.10:
+        return True
+        
+    return False
 
 def run_live_inference(
     weights_path="models/snooker_rack_yolov11.pt",
