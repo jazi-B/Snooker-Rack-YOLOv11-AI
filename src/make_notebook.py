@@ -1,10 +1,12 @@
-{
+import json
+
+notebook = {
  "cells": [
   {
    "cell_type": "markdown",
    "metadata": {},
    "source": [
-    "# \ud83c\udfb1 Snooker Rack YOLOv12 Production GPU Training Notebook\n",
+    "# 🎱 Snooker Rack YOLOv12 Production GPU Training Notebook\n",
     "**Project:** Snooker Rack AI Detection System  \n",
     "**Engine:** YOLOv12 Nano (Area-Attention Neural Architecture)  \n",
     "**Execution Environment:** Google Colab Free T4 GPU  \n",
@@ -21,7 +23,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": None,
    "metadata": {},
    "outputs": [],
    "source": [
@@ -38,7 +40,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": None,
    "metadata": {},
    "outputs": [],
    "source": [
@@ -55,7 +57,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": None,
    "metadata": {},
    "outputs": [],
    "source": [
@@ -95,7 +97,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": None,
    "metadata": {},
    "outputs": [],
    "source": [
@@ -117,7 +119,7 @@
   },
   {
    "cell_type": "code",
-   "execution_count": null,
+   "execution_count": None,
    "metadata": {},
    "outputs": [],
    "source": [
@@ -134,3 +136,8 @@
  "nbformat": 4,
  "nbformat_minor": 2
 }
+
+with open('Snooker_YOLOv12_Training_Colab.ipynb', 'w', encoding='utf-8') as f:
+    json.dump(notebook, f, indent=1)
+
+print('[+] Successfully generated 100% Valid JSON Jupyter Notebook File!')
