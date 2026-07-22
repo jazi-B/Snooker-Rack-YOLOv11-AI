@@ -8,7 +8,8 @@ import numpy as np
 
 def is_initial_unbroken_rack(box_xywh, crop):
     """
-    Verifies if a detected region is the TRUE INITIAL 15-BALL UNBROKEN TRIANGULAR RACK (Start of Frame).
+    Verifies if a detected region is the INITIAL 15-BALL UNBROKEN TRIANGULAR RACK.
+    Supports both overhead CCTV angles and TV broadcast side angles.
     """
     if crop is None or crop.size == 0:
         return False
@@ -16,19 +17,22 @@ def is_initial_unbroken_rack(box_xywh, crop):
     if h == 0 or w == 0:
         return False
     aspect_ratio = float(w) / float(h)
-    if not (0.82 <= aspect_ratio <= 1.28):
+    
+    if not (0.45 <= aspect_ratio <= 2.50):
         return False
         
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    mask1 = cv2.inRange(hsv, np.array([0, 60, 50]), np.array([10, 255, 255]))
-    mask2 = cv2.inRange(hsv, np.array([168, 60, 50]), np.array([180, 255, 255]))
-    red_density = np.sum((mask1 | mask2) > 0) / (w * h)
-    return red_density > 0.20
+    mask1 = cv2.inRange(hsv, np.array([0, 35, 30]), np.array([18, 255, 255]))
+    mask2 = cv2.inRange(hsv, np.array([155, 35, 30]), np.array([180, 255, 255]))
+    red_pixels = np.sum((mask1 | mask2) > 0)
+    red_density = red_pixels / (w * h)
+    
+    return red_density > 0.04
 
 def run_live_inference(
-    weights_path="models/snooker_rack_yolov12.pt",
+    weights_path="models/snooker_rack_yolov11.pt",
     source="0",  # "0" for webcam, "rtsp://..." for CCTV RTSP stream, or path to video file
-    conf_thresh=0.35,
+    conf_thresh=0.15,
     use_roi=False,
     roi_coords=None  # (x1, y1, x2, y2)
 ):
@@ -38,7 +42,7 @@ def run_live_inference(
     if not os.path.exists(weights_path):
         fallback_paths = [
             "models/best.pt",
-            "models/snooker_rack_yolov11.pt"
+            "models/snooker_rack_yolov12.pt"
         ]
         for f in fallback_paths:
             if os.path.exists(f):
@@ -46,7 +50,7 @@ def run_live_inference(
                 break
 
     print("==================================================")
-    print("[*] STARTING SNOOKER RACK LIVE CCTV INFERENCE (YOLOv12)")
+    print("[*] STARTING SNOOKER RACK LIVE CCTV INFERENCE (YOLOv11)")
     print(f"Source: {source} | Weights: {weights_path} | Conf: {conf_thresh}")
     print("==================================================")
 
