@@ -52,7 +52,7 @@ notebook = {
    "cell_type": "markdown",
    "metadata": {},
    "source": [
-    "### Step 3: Run YOLOv12 Production GPU Training (50 Epochs ~3 Minutes)"
+    "### Step 3: Run YOLOv12 Production Training (Auto GPU / CPU Selection)"
    ]
   },
   {
@@ -61,10 +61,14 @@ notebook = {
    "metadata": {},
    "outputs": [],
    "source": [
+    "import torch\n",
     "from ultralytics import YOLO\n\n",
+    "# Auto-detect GPU or CPU\n",
+    "target_device = 0 if torch.cuda.is_available() else 'cpu'\n",
+    "print(f'[*] Active Training Device: {target_device} (CUDA Available: {torch.cuda.is_available()})')\n\n",
     "# Load Pretrained YOLOv12 Nano Weights\n",
     "model = YOLO('yolo12n.pt')\n\n",
-    "# Launch Multi-Angle Production Training on GPU\n",
+    "# Launch Multi-Angle Production Training\n",
     "results = model.train(\n",
     "    data='data.yaml',\n",
     "    epochs=50,\n",
@@ -73,7 +77,7 @@ notebook = {
     "    name='snooker_rack_yolov12_colab',\n",
     "    project='runs/detect',\n",
     "    exist_ok=True,\n",
-    "    device=0,\n",
+    "    device=target_device,\n",
     "    hsv_h=0.015,\n",
     "    hsv_s=0.7,\n",
     "    hsv_v=0.4,\n",
@@ -85,7 +89,7 @@ notebook = {
     "    mixup=0.15,\n",
     "    patience=20\n",
     ")\n",
-    "print('[+] GPU Training Complete!')"
+    "print('[+] Training Complete!')"
    ]
   },
   {
@@ -140,4 +144,4 @@ notebook = {
 with open('Snooker_YOLOv12_Training_Colab.ipynb', 'w', encoding='utf-8') as f:
     json.dump(notebook, f, indent=1)
 
-print('[+] Successfully generated 100% Valid JSON Jupyter Notebook File!')
+print('[+] Successfully generated auto-device Colab Jupyter Notebook File!')
