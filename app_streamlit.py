@@ -57,7 +57,8 @@ with col3:
 def is_initial_unbroken_rack(box_xywh, crop):
     """
     Verifies if a detected region is the TRUE INITIAL 15-BALL UNBROKEN TRIANGULAR RACK.
-    Rejects scattered mid-game balls and loose clusters.
+    Supports both overhead CCTV angles and TV broadcast side angles.
+    Rejects scattered mid-game balls.
     """
     if crop is None or crop.size == 0:
         return False
@@ -66,18 +67,17 @@ def is_initial_unbroken_rack(box_xywh, crop):
         return False
     aspect_ratio = float(w) / float(h)
     
-    # Initial triangular rack aspect ratio range (overhead & broadcast side angles)
-    if not (0.60 <= aspect_ratio <= 1.65):
+    # Aspect ratio check for snooker racks (overhead CCTV & broadcast side angles)
+    if not (0.45 <= aspect_ratio <= 2.20):
         return False
         
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    mask1 = cv2.inRange(hsv, np.array([0, 45, 35]), np.array([15, 255, 255]))
-    mask2 = cv2.inRange(hsv, np.array([160, 45, 35]), np.array([180, 255, 255]))
+    mask1 = cv2.inRange(hsv, np.array([0, 35, 30]), np.array([18, 255, 255]))
+    mask2 = cv2.inRange(hsv, np.array([155, 35, 30]), np.array([180, 255, 255]))
     red_pixels = np.sum((mask1 | mask2) > 0)
     red_density = red_pixels / (w * h)
     
-    # Must have tight red ball packing density
-    return red_density > 0.10
+    return red_density >= 0.04
 
 def load_snooker_model():
     possible_paths = [
@@ -102,7 +102,7 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    results = model.predict(img_bgr, conf=0.20, iou=0.45, verbose=False)
+    results = model.predict(img_bgr, conf=0.15, iou=0.45, verbose=False)
 
     is_true_initial_rack = False
     max_conf = 0.0
@@ -116,7 +116,7 @@ if uploaded_file is not None:
             x1, y1, x2, y2 = max(0, int(b[0])), max(0, int(b[1])), min(w, int(b[2])), min(h, int(b[3]))
             crop = img_bgr[y1:y2, x1:x2]
             
-            # STRICT CHECK: MUST PASS is_initial_unbroken_rack!
+            # Verify if rack detected
             if is_initial_unbroken_rack(b_wh, crop):
                 if conf > max_conf:
                     max_conf = conf
