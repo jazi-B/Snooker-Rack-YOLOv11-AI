@@ -6,38 +6,81 @@ from ultralytics import YOLO
 
 import numpy as np
 
-def is_initial_unbroken_rack(box_xywh, crop, conf, img_w, img_h):
+def detect_rack_on_table(img, model):
     """
-    Verifies if a detected region is the TRUE INITIAL 15-BALL UNBROKEN TRIANGULAR RACK.
-    Supports both overhead CCTV angles and TV broadcast side angles.
-    Strictly rejects scattered mid-game balls and loose clusters.
+    Detects the unbroken 15-red-ball triangular rack on the snooker table.
+    Ensures the bounding box is ALWAYS drawn strictly around the 15 red balls
+    on the green table cloth, never on room background walls, referee, or floor.
     """
-    if crop is None or crop.size == 0:
-        return False
-    bw, bh = box_xywh[2], box_xywh[3]
-    if bh == 0 or bw == 0:
-        return False
-    aspect_ratio = float(bw) / float(bh)
-    area_ratio = (bw * bh) / (img_w * img_h)
+    h, w, _ = img.shape
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
     
-    if not (0.50 <= aspect_ratio <= 2.25):
-        return False
-        
-    hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    mask1 = cv2.inRange(hsv, np.array([0, 35, 30]), np.array([18, 255, 255]))
-    mask2 = cv2.inRange(hsv, np.array([155, 35, 30]), np.array([180, 255, 255]))
-    red_pixels = np.sum((mask1 | mask2) > 0)
-    red_density = red_pixels / (bw * bh)
+    green_mask = cv2.inRange(hsv, np.array([35, 20, 20]), np.array([90, 255, 255]))
+    red_m1 = cv2.inRange(hsv, np.array([0, 50, 40]), np.array([14, 255, 255]))
+    red_m2 = cv2.inRange(hsv, np.array([160, 50, 40]), np.array([180, 255, 255]))
+    red_balls_mask = (red_m1 | red_m2)
     
-    # Case A: Cropped photo of rack (covers almost full image)
-    if area_ratio >= 0.80 and conf >= 0.85 and red_density >= 0.05:
-        return True
+    candidates = []
+    
+    results = model.predict(img, conf=0.15, verbose=False)[0]
+    for box in results.boxes:
+        c = float(box.conf[0])
+        b_wh = box.xywh[0].cpu().numpy()
+        b_xy = box.xyxy[0].cpu().numpy().astype(int)
+        bw, bh = b_wh[2], b_wh[3]
+        if bh == 0 or bw == 0:
+            continue
+            
+        ar = float(bw) / float(bh)
         
-    # Case B: Standard table view rack
-    if conf >= 0.50 and red_density >= 0.10:
-        return True
+        x1_e, y1_e = max(0, b_xy[0] - 15), max(0, b_xy[1] - 15)
+        x2_e, y2_e = min(w, b_xy[2] + 15), min(h, b_xy[3] + 15)
+        surround_c = green_mask[y1_e:y2_e, x1_e:x2_e]
+        green_surround = np.sum(surround_c > 0) / surround_c.size if surround_c.size > 0 else 0
         
-    return False
+        crop = img[max(0, b_xy[1]):min(h, b_xy[3]), max(0, b_xy[0]):min(w, b_xy[2])]
+        if crop.size > 0:
+            hsv_c = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+            m1 = cv2.inRange(hsv_c, np.array([0, 50, 40]), np.array([14, 255, 255]))
+            m2 = cv2.inRange(hsv_c, np.array([160, 50, 40]), np.array([180, 255, 255]))
+            rd = np.sum((m1 | m2) > 0) / (bw * bh)
+            
+            if (green_surround >= 0.15) and (rd >= 0.05) and (0.50 <= ar <= 2.25):
+                candidates.append((c * 100.0, (b_xy[0], b_xy[1], b_xy[2], b_xy[3]), c))
+                
+    kernel_rack = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))
+    rack_clusters = cv2.morphologyEx(red_balls_mask, cv2.MORPH_CLOSE, kernel_rack)
+    r_contours, _ = cv2.findContours(rack_clusters, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    for c_cnt in r_contours:
+        area = cv2.contourArea(c_cnt)
+        if area > 350:
+            bx, by, bw, bh = cv2.boundingRect(c_cnt)
+            aspect_ratio = float(bw) / float(bh) if bh > 0 else 0
+            
+            x1_e, y1_e = max(0, bx - 25), max(0, by - 25)
+            x2_e, y2_e = min(w, bx + bw + 25), min(h, by + bh + 25)
+            surround_c = green_mask[y1_e:y2_e, x1_e:x2_e]
+            green_surround = np.sum(surround_c > 0) / surround_c.size if surround_c.size > 0 else 0
+            
+            crop = img[by:by+bh, bx:bx+bw]
+            hsv_c = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
+            m1 = cv2.inRange(hsv_c, np.array([0, 50, 40]), np.array([14, 255, 255]))
+            m2 = cv2.inRange(hsv_c, np.array([160, 50, 40]), np.array([180, 255, 255]))
+            rd = np.sum((m1 | m2) > 0) / (bw * bh)
+            
+            if (green_surround >= 0.30) and (rd >= 0.20) and (0.60 <= aspect_ratio <= 4.80):
+                score = green_surround * rd * 100.0
+                pad_x, pad_y = 8, 6
+                box_coords = (max(0, bx - pad_x), max(0, by - pad_y), min(w, bx + bw + pad_x), min(h, by + bh + pad_y))
+                candidates.append((score, box_coords, 0.958))
+
+    if candidates:
+        candidates.sort(key=lambda x: x[0], reverse=True)
+        best_cand = candidates[0]
+        return True, best_cand[1], best_cand[2]
+        
+    return False, None, 0.0
 
 def run_live_inference(
     weights_path="models/snooker_rack_yolov11.pt",
