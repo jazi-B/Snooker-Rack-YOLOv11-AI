@@ -8,8 +8,8 @@ import numpy as np
 
 def is_initial_unbroken_rack(box_xywh, crop):
     """
-    Verifies if a detected region is the INITIAL 15-BALL UNBROKEN TRIANGULAR RACK.
-    Supports both overhead CCTV angles and TV broadcast side angles.
+    Verifies if a detected region is the TRUE INITIAL 15-BALL UNBROKEN TRIANGULAR RACK.
+    Rejects scattered mid-game balls and loose clusters.
     """
     if crop is None or crop.size == 0:
         return False
@@ -18,16 +18,16 @@ def is_initial_unbroken_rack(box_xywh, crop):
         return False
     aspect_ratio = float(w) / float(h)
     
-    if not (0.45 <= aspect_ratio <= 2.50):
+    if not (0.60 <= aspect_ratio <= 1.65):
         return False
         
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    mask1 = cv2.inRange(hsv, np.array([0, 35, 30]), np.array([18, 255, 255]))
-    mask2 = cv2.inRange(hsv, np.array([155, 35, 30]), np.array([180, 255, 255]))
+    mask1 = cv2.inRange(hsv, np.array([0, 45, 35]), np.array([15, 255, 255]))
+    mask2 = cv2.inRange(hsv, np.array([160, 45, 35]), np.array([180, 255, 255]))
     red_pixels = np.sum((mask1 | mask2) > 0)
     red_density = red_pixels / (w * h)
     
-    return red_density > 0.04
+    return red_density > 0.10
 
 def run_live_inference(
     weights_path="models/snooker_rack_yolov11.pt",

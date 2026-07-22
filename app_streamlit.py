@@ -56,8 +56,8 @@ with col3:
 
 def is_initial_unbroken_rack(box_xywh, crop):
     """
-    Verifies if a detected region is the INITIAL 15-BALL UNBROKEN TRIANGULAR RACK.
-    Supports both overhead CCTV angles and TV broadcast side angles.
+    Verifies if a detected region is the TRUE INITIAL 15-BALL UNBROKEN TRIANGULAR RACK.
+    Rejects scattered mid-game balls and loose clusters.
     """
     if crop is None or crop.size == 0:
         return False
@@ -66,17 +66,18 @@ def is_initial_unbroken_rack(box_xywh, crop):
         return False
     aspect_ratio = float(w) / float(h)
     
-    # Broadcast side angles have wider aspect ratios (0.45 to 2.50)
-    if not (0.45 <= aspect_ratio <= 2.50):
+    # Initial triangular rack aspect ratio range (overhead & broadcast side angles)
+    if not (0.60 <= aspect_ratio <= 1.65):
         return False
         
     hsv = cv2.cvtColor(crop, cv2.COLOR_BGR2HSV)
-    mask1 = cv2.inRange(hsv, np.array([0, 35, 30]), np.array([18, 255, 255]))
-    mask2 = cv2.inRange(hsv, np.array([155, 35, 30]), np.array([180, 255, 255]))
+    mask1 = cv2.inRange(hsv, np.array([0, 45, 35]), np.array([15, 255, 255]))
+    mask2 = cv2.inRange(hsv, np.array([160, 45, 35]), np.array([180, 255, 255]))
     red_pixels = np.sum((mask1 | mask2) > 0)
     red_density = red_pixels / (w * h)
     
-    return red_density > 0.04
+    # Must have tight red ball packing density
+    return red_density > 0.10
 
 def load_snooker_model():
     possible_paths = [
@@ -101,8 +102,7 @@ if uploaded_file is not None:
 
     h, w, _ = img_bgr.shape
     
-    # Conf 0.15 supports both overhead CCTV and broadcast side angles
-    results = model.predict(img_bgr, conf=0.15, iou=0.45, verbose=False)
+    results = model.predict(img_bgr, conf=0.20, iou=0.45, verbose=False)
 
     is_true_initial_rack = False
     max_conf = 0.0
@@ -116,15 +116,15 @@ if uploaded_file is not None:
             x1, y1, x2, y2 = max(0, int(b[0])), max(0, int(b[1])), min(w, int(b[2])), min(h, int(b[3]))
             crop = img_bgr[y1:y2, x1:x2]
             
-            # Verify if rack detected
-            if is_initial_unbroken_rack(b_wh, crop) or conf > 0.25:
+            # STRICT CHECK: MUST PASS is_initial_unbroken_rack!
+            if is_initial_unbroken_rack(b_wh, crop):
                 if conf > max_conf:
                     max_conf = conf
                     is_true_initial_rack = True
                     
                     # Draw Bounding Box & Label on image
                     cv2.rectangle(img_bgr, (x1, y1), (x2, y2), (0, 230, 115), 4)
-                    lbl_text = f"SNOOKER RACK: {conf*100:.1f}%"
+                    lbl_text = f"INITIAL RACK: {conf*100:.1f}%"
                     (w_l, h_l), _ = cv2.getTextSize(lbl_text, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)
                     cv2.rectangle(img_bgr, (x1, max(y1 - 30, 0)), (x1 + w_l + 10, y1), (0, 230, 115), -1)
                     cv2.putText(img_bgr, lbl_text, (x1 + 5, max(y1 - 8, 20)), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
