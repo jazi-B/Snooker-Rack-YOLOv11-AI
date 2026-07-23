@@ -22,6 +22,7 @@ def main():
         name="snooker_rack_yolov12",
         project="runs/detect",
         device=device,
+        amp=False,
         exist_ok=True,
         hsv_h=0.015,
         hsv_s=0.7,
