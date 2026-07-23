@@ -453,7 +453,7 @@ def predict_api():
             return jsonify({'success': False, 'error': 'Could not decode image'})
             
         # Run YOLO inference
-        results = model.predict(img, conf=0.45, verbose=False)[0]
+        results = model.predict(img, conf=0.30, verbose=False)[0]
         
         rack_detected = False
         max_conf = 0.0
