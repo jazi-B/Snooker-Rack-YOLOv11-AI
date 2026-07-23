@@ -2,9 +2,8 @@
 
 # Absolute paths or paths relative to current execution directory
 path: .
-train: dataset/images/train
-val: dataset/images/val
-test: dataset/images/test
+train: dataset/train/images
+val: dataset/valid/images
 
 # Classes
 names:

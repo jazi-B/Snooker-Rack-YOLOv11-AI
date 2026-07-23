@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 1
+names: ['Snooker-Rack']
+
+roboflow:
+  workspace: m_jazib-hotmail-com
+  project: snooker_rack
+  version: dataset
+  license: CC BY 4.0
+  url: https://universe.roboflow.com/m_jazib-hotmail-com/snooker_rack/dataset/dataset

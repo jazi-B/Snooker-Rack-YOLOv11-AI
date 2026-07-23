@@ -1,5 +1,0 @@
-path: .
-train: dataset_finetune/images/train
-val: dataset_finetune/images/train
-names:
-  0: snooker_rack
