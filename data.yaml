@@ -4,6 +4,7 @@
 path: .
 train: dataset/train/images
 val: dataset/valid/images
+test: dataset/test/images
 
 # Classes
 names:

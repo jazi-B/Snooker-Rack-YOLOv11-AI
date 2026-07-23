@@ -3,11 +3,11 @@ val: ../valid/images
 test: ../test/images
 
 nc: 1
-names: ['Snooker-Rack']
+names: ['Snooker']
 
 roboflow:
   workspace: m_jazib-hotmail-com
-  project: snooker_rack
+  project: snooker-kpf1m
   version: dataset
   license: CC BY 4.0
-  url: https://universe.roboflow.com/m_jazib-hotmail-com/snooker_rack/dataset/dataset
+  url: https://universe.roboflow.com/m_jazib-hotmail-com/snooker-kpf1m/dataset/dataset
