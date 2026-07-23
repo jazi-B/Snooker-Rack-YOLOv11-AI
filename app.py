@@ -23,11 +23,22 @@ if not os.path.exists(WEIGHTS_PATH):
             WEIGHTS_PATH = os.path.join("models", f)
             break
     else:
-        # If no local fallback is found, Ultralytics will automatically download yolo12n.pt
         WEIGHTS_PATH = "yolo12n.pt"
 
 print(f"[*] App loading model weights from: {WEIGHTS_PATH}")
 model = YOLO(WEIGHTS_PATH)
+
+CONFIG_PATH = "tables_config.json"
+
+def load_tables_config():
+    if os.path.exists(CONFIG_PATH):
+        try:
+            import json
+            with open(CONFIG_PATH, "r") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {"CCTV_Camera_1": [{"table_id": "Table_1", "roi": None}]}
 
 def get_local_ip():
     try:
@@ -39,40 +50,29 @@ def get_local_ip():
     except Exception:
         return "127.0.0.1"
 
-def draw_dynamic_hud(img, rack_detected, conf, box_coords=None):
-    """
-    Renders a clean HUD overlay on the processed image.
-    """
+def draw_dynamic_hud(img, tables_results):
     h, w, _ = img.shape
     font_scale = min(0.7, max(0.4, w / 900.0))
     thickness = 2 if font_scale > 0.5 else 1
     
-    # 1. Bounding Box (Emerald Green)
-    if rack_detected and box_coords:
-        x1, y1, x2, y2 = box_coords
-        box_thickness = max(2, int(min(w, h) / 180))
-        cv2.rectangle(img, (x1, y1), (x2, y2), (0, 230, 115), box_thickness)
-
-    # 2. HUD Banner
+    # HUD Banner
     banner_h = max(36, int(h * 0.08))
     cv2.rectangle(img, (0, 0), (w, banner_h), (15, 15, 18), -1)
 
-    left_text = "YOLOv12 AI Engine"
-    if rack_detected:
-        right_text = f"STATUS: RACK SET ({conf*100:.0f}%)"
-        right_color = (0, 230, 115)
-    else:
-        right_text = "STATUS: GAME IN PROGRESS / NO RACK"
-        right_color = (0, 165, 255)
-
-    (w_l, h_l), _ = cv2.getTextSize(left_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
-    (w_r, h_r), _ = cv2.getTextSize(right_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
-
-    y_pos = int(banner_h / 2.0 + h_l / 2.0)
-    cv2.putText(img, left_text, (12, y_pos), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness)
+    left_text = "YOLOv12 AI Multi-Table Engine"
+    cv2.putText(img, left_text, (12, int(banner_h / 2.0 + 5)), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness)
     
-    right_x = max(w_l + 25, w - w_r - 15)
-    cv2.putText(img, right_text, (int(right_x), y_pos), cv2.FONT_HERSHEY_SIMPLEX, font_scale, right_color, thickness)
+    # Compile table statuses
+    status_parts = []
+    for t in tables_results:
+        status_str = "RACK" if t['rack_detected'] else "NO RACK"
+        status_parts.append(f"{t['table_id']}: {status_str}")
+        
+    right_text = " | ".join(status_parts)
+    (w_r, h_r), _ = cv2.getTextSize(right_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)
+    right_x = max(w - w_r - 15, w // 2)
+    
+    cv2.putText(img, right_text, (int(right_x), int(banner_h / 2.0 + 5)), cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 230, 115), thickness)
 
     return img
 
@@ -243,6 +243,14 @@ HTML_TEMPLATE = """
             to { opacity: 1; transform: translateY(0); }
         }
 
+        .status-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
         .status-badge {
             display: inline-flex;
             align-items: center;
@@ -251,7 +259,6 @@ HTML_TEMPLATE = """
             border-radius: 30px;
             font-weight: 700;
             font-size: 14px;
-            margin-bottom: 20px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.2);
@@ -264,7 +271,7 @@ HTML_TEMPLATE = """
         }
 
         .status-norack {
-            background: rgba(255, 165, 0, 0.12);
+            background: rgba(255, 165, orange, 0.12);
             color: var(--accent-orange);
             border: 1px solid var(--accent-orange);
         }
@@ -319,7 +326,7 @@ HTML_TEMPLATE = """
 <body>
 
 <div class="header">
-    <h1>🎱 Snooker Club AI Rack Monitor</h1>
+    <h1>🎱 Snooker Club AI Multi-Table Monitor</h1>
     <p>Production-Grade CCTV Snooker Rack Status Engine (YOLOv12 Core)</p>
     
     <div class="metrics-grid">
@@ -338,7 +345,7 @@ HTML_TEMPLATE = """
     <input type="file" id="file-input" accept="image/*" onchange="processImage(this.files[0])">
 
     <div id="result-panel" class="result-panel">
-        <div id="status-badge" class="status-badge"></div>
+        <div id="status-container" class="status-container"></div>
         <div>
             <div class="image-container">
                 <img id="result-img" src="" alt="YOLOv12 Prediction Output">
@@ -357,7 +364,6 @@ HTML_TEMPLATE = """
 </div>
 
 <script>
-    // Handle Drag & Drop
     const dropzone = document.getElementById('dropzone');
     
     ['dragenter', 'dragover'].forEach(eventName => {
@@ -388,12 +394,11 @@ HTML_TEMPLATE = """
         if (!file) return;
         
         const resultPanel = document.getElementById('result-panel');
-        const statusBadge = document.getElementById('status-badge');
+        const statusContainer = document.getElementById('status-container');
         const resultImg = document.getElementById('result-img');
         
         resultPanel.style.display = 'block';
-        statusBadge.innerText = 'AI Inference In Progress...';
-        statusBadge.className = 'status-badge status-norack';
+        statusContainer.innerHTML = '<div class="status-badge status-norack">AI Inference In Progress...</div>';
         
         const formData = new FormData();
         formData.append('file', file);
@@ -406,16 +411,22 @@ HTML_TEMPLATE = """
         .then(data => {
             if (data.success) {
                 resultImg.src = data.image_b64;
-                if (data.rack_detected) {
-                    statusBadge.innerText = `✅ Rack Set (Confidence: ${(data.conf * 100).toFixed(1)}%)`;
-                    statusBadge.className = 'status-badge status-rack';
-                } else {
-                    statusBadge.innerText = '⚠️ Game In Progress / No Rack Detected';
-                    statusBadge.className = 'status-badge status-norack';
-                }
+                statusContainer.innerHTML = '';
+                
+                data.tables_results.forEach(t => {
+                    const badge = document.createElement('div');
+                    if (t.rack_detected) {
+                        badge.innerText = `✅ ${t.table_id}: RACK SET (${(t.conf * 100).toFixed(0)}%)`;
+                        badge.className = 'status-badge status-rack';
+                    } else {
+                        badge.innerText = `⚠️ ${t.table_id}: GAME IN PROGRESS`;
+                        badge.className = 'status-badge status-norack';
+                    }
+                    statusContainer.appendChild(badge);
+                });
             } else {
                 alert('Error running inference: ' + data.error);
-                statusBadge.innerText = 'Error processing image';
+                statusContainer.innerHTML = '<div class="status-badge status-norack">Error processing image</div>';
             }
         })
         .catch(err => {
@@ -452,26 +463,72 @@ def predict_api():
         if img is None:
             return jsonify({'success': False, 'error': 'Could not decode image'})
             
-        # Run YOLO inference
-        results = model.predict(img, conf=0.30, verbose=False)[0]
+        # Get tables config
+        config = load_tables_config()
+        camera_id = request.form.get('camera_id', 'CCTV_Camera_1')
+        tables = config.get(camera_id, [{"table_id": "Table_1", "roi": None}])
         
-        rack_detected = False
-        max_conf = 0.0
-        box_coords = None
+        tables_results = []
+        processed_img = img.copy()
         
-        if len(results.boxes) > 0:
-            highest_conf_idx = results.boxes.conf.argmax().item()
-            conf = results.boxes.conf[highest_conf_idx].item()
-            cls = int(results.boxes.cls[highest_conf_idx].item())
+        for table_info in tables:
+            table_id = table_info["table_id"]
+            roi = table_info["roi"]
             
-            if cls == 0:  # Class 0: snooker_rack
-                rack_detected = True
-                max_conf = conf
-                xyxy = results.boxes.xyxy[highest_conf_idx].cpu().numpy()
-                box_coords = [int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])]
+            h, w, _ = img.shape
+            
+            # Crop ROI if defined
+            if roi:
+                # Expects normalized coordinates [ymin, xmin, ymax, xmax]
+                ymin, xmin, ymax, xmax = roi
+                ymin_px = int(ymin * h)
+                xmin_px = int(xmin * w)
+                ymax_px = int(ymax * h)
+                xmax_px = int(xmax * w)
                 
-        # Draw HUD on the image
-        processed_img = draw_dynamic_hud(img.copy(), rack_detected, max_conf, box_coords)
+                cropped_img = img[ymin_px:ymax_px, xmin_px:xmax_px]
+            else:
+                ymin_px, xmin_px = 0, 0
+                cropped_img = img
+                
+            # Run YOLO inference
+            results = model.predict(cropped_img, conf=0.11, verbose=False)[0]
+            
+            rack_detected = False
+            max_conf = 0.0
+            box_coords = None
+            
+            if len(results.boxes) > 0:
+                highest_conf_idx = results.boxes.conf.argmax().item()
+                conf = results.boxes.conf[highest_conf_idx].item()
+                cls = int(results.boxes.cls[highest_conf_idx].item())
+                
+                if cls == 0:  # Class 0: snooker_rack
+                    rack_detected = True
+                    max_conf = conf
+                    xyxy = results.boxes.xyxy[highest_conf_idx].cpu().numpy()
+                    # Translate coordinates back to full image coordinate space
+                    box_coords = [
+                        int(xyxy[0]) + xmin_px,
+                        int(xyxy[1]) + ymin_px,
+                        int(xyxy[2]) + xmin_px,
+                        int(xyxy[3]) + ymin_px
+                    ]
+            
+            tables_results.append({
+                'table_id': table_id,
+                'rack_detected': rack_detected,
+                'conf': float(max_conf),
+                'box_coords': box_coords
+            })
+            
+            # Draw individual boxes on processed image
+            if rack_detected and box_coords:
+                box_thickness = max(2, int(min(w, h) / 180))
+                cv2.rectangle(processed_img, (box_coords[0], box_coords[1]), (box_coords[2], box_coords[3]), (0, 230, 115), box_thickness)
+                
+        # Draw dynamic overlay HUD
+        processed_img = draw_dynamic_hud(processed_img, tables_results)
         
         # Encode back to PNG base64
         _, buffer = cv2.imencode('.png', processed_img)
@@ -479,8 +536,7 @@ def predict_api():
         
         return jsonify({
             'success': True,
-            'rack_detected': rack_detected,
-            'conf': float(max_conf),
+            'tables_results': tables_results,
             'image_b64': img_b64
         })
         
