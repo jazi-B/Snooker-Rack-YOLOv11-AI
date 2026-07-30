@@ -79,49 +79,46 @@ class TableProcessor(threading.Thread):
         self.running = True
         print(f"[*] Starting camera thread for {self.name} (Source: {self.source})")
         
-        # Attempt to open video capture
+        # Attempt to open video capture first
         is_simulated = False
         cap = None
         
-        # Determine if it's a camera index
         src_val = self.source
-        if src_val.isdigit():
-            src_val = int(src_val)
+        try:
+            if src_val.isdigit():
+                cap_src = int(src_val)
+                cap = cv2.VideoCapture(cap_src)
+            else:
+                cap = cv2.VideoCapture(src_val)
+                
+            if cap is not None and cap.isOpened():
+                print(f"[+] Camera feed successfully connected for {self.name} using source: {src_val}")
+            else:
+                is_simulated = True
+                print(f"[!] Could not open camera feed for {self.name} using source: {src_val}. Falling back to simulation.")
+        except Exception as e:
+            is_simulated = True
+            print(f"[!] Exception opening camera feed for {self.name}: {e}. Falling back to simulation.")
             
-        # Check if we have the test dataset on the desktop
-        rack_dir = r"c:\Users\m_jaz\Desktop\Test_for_snooker\Rack"
-        no_rack_dir = r"c:\Users\m_jaz\Desktop\Test_for_snooker\No_Rack"
-        
+        # Check if we have the test dataset on the desktop (only for simulation fallback)
         rack_imgs = []
         no_rack_imgs = []
         is_img_dir = False
         
-        if os.path.exists(rack_dir) and os.path.exists(no_rack_dir):
-            try:
-                rack_imgs = [os.path.join(rack_dir, f) for f in os.listdir(rack_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-                no_rack_imgs = [os.path.join(no_rack_dir, f) for f in os.listdir(no_rack_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-                rack_imgs.sort()
-                no_rack_imgs.sort()
-                if rack_imgs and no_rack_imgs:
-                    is_img_dir = True
-                    print(f"[*] Found test datasets: {len(rack_imgs)} Rack and {len(no_rack_imgs)} No_Rack images. Using directory test feed.")
-            except Exception as e:
-                print(f"[!] Error reading test directories: {e}")
-
-        # Attempt to open video capture
-        is_simulated = False
-        cap = None
-        
-        if is_img_dir:
-            is_simulated = True
-            print(f"[*] Bypassing cv2.VideoCapture to use directory test images for {self.name}")
-        else:
-            try:
-                cap = cv2.VideoCapture(src_val, cv2.CAP_DSHOW)
-                if not cap.isOpened():
-                    is_simulated = True
-            except Exception:
-                is_simulated = True
+        if is_simulated:
+            rack_dir = r"c:\Users\m_jaz\Desktop\Test_for_snooker\Rack"
+            no_rack_dir = r"c:\Users\m_jaz\Desktop\Test_for_snooker\No_Rack"
+            if os.path.exists(rack_dir) and os.path.exists(no_rack_dir):
+                try:
+                    rack_imgs = [os.path.join(rack_dir, f) for f in os.listdir(rack_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                    no_rack_imgs = [os.path.join(no_rack_dir, f) for f in os.listdir(no_rack_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                    rack_imgs.sort()
+                    no_rack_imgs.sort()
+                    if rack_imgs and no_rack_imgs:
+                        is_img_dir = True
+                        print(f"[*] Simulation Fallback: Using directory test images for {self.name}.")
+                except Exception as e:
+                    print(f"[!] Error reading test directories: {e}")
             
         # Simulation lifecycle variables
         sim_frame_count = 0
@@ -156,12 +153,12 @@ class TableProcessor(threading.Thread):
                 # --- A. Test Image Directory Simulator ---
                 sim_frame_count += 1
                 
-                # Alternate every 15 seconds: Rack state for 15s, No_Rack for 15s
+                # Alternate every 50 seconds: Rack state for 25s, No_Rack for 25s
                 elapsed_cycle = time.time() - sim_rack_cycle_start
-                if elapsed_cycle > 30:
+                if elapsed_cycle > 50:
                     sim_rack_cycle_start = time.time()
                     sim_rack_visible = True
-                elif elapsed_cycle > 15:
+                elif elapsed_cycle > 25:
                     sim_rack_visible = False
                     
                 # Load corresponding image from sorted list
@@ -275,10 +272,10 @@ class TableProcessor(threading.Thread):
                 cv2.ellipse(frame, (160, 240), (60, 60), 0, 90, 270, (255, 255, 255), 2)
                 
                 elapsed_cycle = time.time() - sim_rack_cycle_start
-                if elapsed_cycle > 30:
+                if elapsed_cycle > 50:
                     sim_rack_cycle_start = time.time()
                     sim_rack_visible = True
-                elif elapsed_cycle > 15:
+                elif elapsed_cycle > 25:
                     sim_rack_visible = False
                     
                 if sim_rack_visible:
