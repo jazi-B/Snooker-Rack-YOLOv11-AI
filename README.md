@@ -6,6 +6,30 @@ Built with **Ultralytics YOLOv11**, OpenCV, and an **Iterative Pilot-First Indus
 
 ---
 
+## 🖥️ Production Snooker Rack CCTV Overhead Session Manager
+
+The project includes a production-ready, dark-themed web dashboard for club owners to monitor tables, automate billing, calibrate camera regions, and track business analytics.
+
+### 🌟 Key Dashboard Features
+1. **Active Session Billing**:
+   - Start/End sessions with customer names and custom rates.
+   - **Automated Game Counter**: Tracks rack status using a dual-confidence state machine. When a rack is stationary for 15s (conf >= 60%), it is locked. Breaking the rack auto-increments the frames count and session bill.
+   - Manual override controllers (+/- buttons) to manually adjust played frames.
+   - Interactive receipt invoice generator with print capability.
+2. **Live CCTV Stream HUDs**:
+   - Grid view displaying live overhead feeds with real-time YOLO bounding boxes.
+   - Real-time overlay status badges (`Vacant`, `Waiting for Rack`, `Rack Set`, `Game In Progress`).
+3. **Business & Performance Analytics**:
+   - **100% Real SQL Calculations** querying SQLite DB records (Revenue, Frames Played, Average Session Duration, Occupancy Rate).
+   - Hourly Peak Traffic line chart and Revenue Contribution Share doughnut chart using Chart.js.
+4. **Interactive ROI Calibration**:
+   - Click-to-draw SVG polygon tool to define the table's region of interest (ROI) and ignore surrounding spectators/reflections.
+5. **Admin Table Management**:
+   - Add new tables with dynamic video sources (USB indexes, RTSP URLs, local file paths).
+   - Remove redundant tables (trash icon button) to stop background camera thread processors.
+
+---
+
 ## 💡 Industry Best-Practice Strategy: Pilot Model First
 
 As specified in real-world computer vision engineering:
