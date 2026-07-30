@@ -1,6 +1,7 @@
 import os
 import cv2
 import argparse
+from collections import deque
 from ultralytics import YOLO
 
 def draw_dynamic_hud(img, rack_detected, conf, box_coords=None):
@@ -72,6 +73,11 @@ def main():
         
     cv2.namedWindow("Snooker CCTV Engine - Press 'q' to Quit", cv2.WINDOW_NORMAL)
     
+    # Temporal smoothing parameters
+    history_window = deque(maxlen=30)
+    last_box_coords = None
+    last_conf = 0.0
+    
     while True:
         ret, frame = cap.read()
         if not ret:
@@ -100,8 +106,25 @@ def main():
                 xyxy = results.boxes.xyxy[highest_conf_idx].cpu().numpy()
                 box_coords = [int(xyxy[0]), int(xyxy[1]), int(xyxy[2]), int(xyxy[3])]
                 
-        # Draw HUD on the frame
-        frame = draw_dynamic_hud(frame, rack_detected, max_conf, box_coords)
+        # Append to rolling window history
+        history_window.append(rack_detected)
+        
+        # Calculate smoothed detection ratio (threshold: 70%)
+        detected_ratio = sum(history_window) / len(history_window) if history_window else 0.0
+        smoothed_rack_detected = detected_ratio >= 0.70
+        
+        # Update last known values if rack is currently detected
+        if rack_detected:
+            last_box_coords = box_coords
+            last_conf = max_conf
+            
+        # Draw HUD on the frame using smoothed status and last known box coords/confidence
+        frame = draw_dynamic_hud(
+            frame, 
+            smoothed_rack_detected, 
+            last_conf if smoothed_rack_detected else 0.0, 
+            last_box_coords if smoothed_rack_detected else None
+        )
         
         cv2.imshow("Snooker CCTV Engine - Press 'q' to Quit", frame)
         

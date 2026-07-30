@@ -19,3 +19,11 @@ env/
 # Windows
 Thumbs.db
 Desktop.ini
+
+# Databases
+snooker_dashboard.db
+*.db
+*.sqlite3
+
+# Cache files
+*.cache

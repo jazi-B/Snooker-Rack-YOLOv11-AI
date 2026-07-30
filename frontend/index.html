@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snooker Rack AI CCTV Dashboard</title>
+    <!-- Modern Typography: Outfit & Inter from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Premium Stylesheet -->
+    <link rel="stylesheet" href="style.css?v=1.2">
+    <!-- Chart.js for Business Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Dashboard Header -->
+        <header class="app-header">
+            <div class="logo-area">
+                <i class="fa-solid fa-circle-notch logo-spin"></i>
+                <div class="logo-text">
+                    <h1>SNOOKER<span>RACK AI</span></h1>
+                    <p>Production CCTV Overhead Session Manager</p>
+                </div>
+            </div>
+            <!-- Tab Navigation Links -->
+            <nav class="tab-navigation">
+                <button class="nav-btn active" data-tab="dashboard-tab">
+                    <i class="fa-solid fa-table-cells-large"></i> Active Dashboard
+                </button>
+                <button class="nav-btn" data-tab="feeds-tab">
+                    <i class="fa-solid fa-video"></i> Live CCTV Feeds
+                </button>
+                <button class="nav-btn" data-tab="analytics-tab">
+                    <i class="fa-solid fa-chart-line"></i> Business Analytics
+                </button>
+                <button class="nav-btn" data-tab="settings-tab">
+                    <i class="fa-solid fa-sliders"></i> ROI & System Settings
+                </button>
+            </nav>
+            <div class="system-time" id="clock">02:30 PM</div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="app-content">
+            <!-- TAB 1: SESSIONS DASHBOARD -->
+            <section class="tab-panel active" id="dashboard-tab">
+                <div class="section-header">
+                    <div class="header-info">
+                        <h2>Active Table Sessions</h2>
+                        <p>Real-time AI monitoring and frame calculations</p>
+                    </div>
+                    <button class="action-btn" id="open-add-table-btn">
+                        <i class="fa-solid fa-plus"></i> Add New Table
+                    </button>
+                </div>
+                
+                <!-- Table Grid (max 3 per row) -->
+                <div class="table-grid" id="tables-container">
+                    <!-- Dynamic Table Cards loaded via JS -->
+                    <div class="loading-state">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                        <p>Syncing snooker tables status...</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: CAMERA STREAM FEEDS -->
+            <section class="tab-panel" id="feeds-tab">
+                <div class="section-header">
+                    <div class="header-info">
+                        <h2>Live CCTV Stream Engine</h2>
+                        <p>Overhead cameras with real-time YOLO rack segmentation HUDs</p>
+                    </div>
+                </div>
+                <!-- Feeds Grid -->
+                <div class="feeds-grid" id="feeds-container">
+                    <!-- Dynamic feeds loaded via JS -->
+                </div>
+            </section>
+
+            <!-- TAB 3: SETTINGS & ROI CALIBRATION -->
+            <section class="tab-panel" id="settings-tab">
+                <div class="settings-layout">
+                    <!-- ROI Calibration Workspace -->
+                    <div class="calibration-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-bullseye text-emerald"></i> Overhead ROI Calibration</h3>
+                            <p>Select a table, then click points on the feed to define the detection polygon</p>
+                        </div>
+                        
+                        <div class="calibration-controls">
+                            <select id="calib-table-select" class="form-select">
+                                <option value="">-- Choose Snooker Table --</option>
+                            </select>
+                            <div class="calibration-actions">
+                                <button class="btn btn-outline" id="clear-roi-btn" disabled>
+                                    <i class="fa-solid fa-trash-can"></i> Clear Points
+                                </button>
+                                <button class="btn btn-primary" id="save-roi-btn" disabled>
+                                    <i class="fa-solid fa-floppy-disk"></i> Save ROI Polygon
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Interactive Canvas Overlay Feed -->
+                        <div class="video-canvas-container">
+                            <div class="video-placeholder" id="calib-placeholder">
+                                <i class="fa-solid fa-video-slash"></i>
+                                <p>Select a table above to stream feed and calibrate ROI</p>
+                            </div>
+                            <img src="" id="calib-img" class="calib-stream-img" alt="CCTV Calibration Feed">
+                            <svg id="calib-svg" class="calib-svg-overlay"></svg>
+                        </div>
+                    </div>
+
+                    <!-- System Config Side panel -->
+                    <div class="config-side-panel">
+                        <!-- Rate Settings -->
+                        <div class="settings-card">
+                            <h3><i class="fa-solid fa-indian-rupee-sign text-emerald"></i> Billing Configurations</h3>
+                            <p>Set default price per game/frame</p>
+                            <div class="input-group">
+                                <label for="game-rate-input">Rate Per Frame / Game (Rs.)</label>
+                                <input type="number" id="game-rate-input" class="form-input" min="0.5" step="0.5" value="10.0">
+                            </div>
+                            <button class="btn btn-primary w-full" id="save-settings-btn">
+                                Save Settings
+                            </button>
+                        </div>
+
+                        <!-- Completed Sessions List -->
+                        <div class="settings-card history-card">
+                            <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Session Log</h3>
+                            <p>Latest completed billing sessions</p>
+                            <div class="history-list" id="history-container">
+                                <!-- Dynamic logs loaded via JS -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 4: BUSINESS ANALYTICS -->
+            <section class="tab-panel" id="analytics-tab">
+                <div class="section-header">
+                    <div class="header-info">
+                        <h2>Business & Performance Analytics</h2>
+                        <p>Club revenue breakdown, peak traffic hours, and session performance tracking</p>
+                    </div>
+                    <div class="header-actions">
+                        <select id="analytics-time-range" class="form-select inline-select">
+                            <option value="today">Today</option>
+                            <option value="7days" selected>Last 7 Days</option>
+                            <option value="all">All Time</option>
+                        </select>
+                        <button class="action-btn" id="refresh-analytics-btn">
+                            <i class="fa-solid fa-arrows-rotate"></i> Refresh Metrics
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Analytics Metrics Grid -->
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <div class="metric-icon bg-emerald-glow">
+                            <i class="fa-solid fa-indian-rupee-sign text-emerald"></i>
+                        </div>
+                        <div class="metric-info">
+                            <span class="metric-label">Total Revenue Today</span>
+                            <span class="metric-value" id="metric-revenue">Rs. 0.00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-icon bg-blue-glow">
+                            <i class="fa-solid fa-gamepad text-blue"></i>
+                        </div>
+                        <div class="metric-info">
+                            <span class="metric-label">Total Games Played</span>
+                            <span class="metric-value" id="metric-games">0 Games</span>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-icon bg-orange-glow">
+                            <i class="fa-solid fa-hourglass-half text-orange"></i>
+                        </div>
+                        <div class="metric-info">
+                            <span class="metric-label">Avg Session Duration</span>
+                            <span class="metric-value" id="metric-duration">0 Mins</span>
+                        </div>
+                    </div>
+                    
+                    <div class="metric-card">
+                        <div class="metric-icon bg-purple-glow">
+                            <i class="fa-solid fa-chart-pie text-purple"></i>
+                        </div>
+                        <div class="metric-info">
+                            <span class="metric-label">Tables Occupancy Rate</span>
+                            <span class="metric-value" id="metric-occupancy">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Analytics Visualizations Grid -->
+                <div class="charts-layout">
+                    <!-- Hourly Peak Traffic Chart Card -->
+                    <div class="chart-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-chart-area text-blue"></i> Hourly Peak Occupancy Rate</h3>
+                            <p>Hourly percentage of occupied snooker tables today</p>
+                        </div>
+                        <div class="chart-container-canvas">
+                            <canvas id="occupancy-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Table Revenue Share Chart Card -->
+                    <div class="chart-card">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-chart-pie text-emerald"></i> Revenue Contribution Share</h3>
+                            <p>Share of total revenue generated by each active table</p>
+                        </div>
+                        <div class="chart-container-canvas">
+                            <canvas id="revenue-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- --- APP MODALS --- -->
+
+    <!-- MODAL 1: START SESSION -->
+    <div class="modal-overlay" id="start-session-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Start Gaming Session</h2>
+                <button class="close-modal" data-close="start-session-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="start-table-id">
+                <div class="input-group">
+                    <label for="customer-name-input">Customer / Member Name</label>
+                    <input type="text" id="customer-name-input" class="form-input" placeholder="e.g., John Doe" required>
+                </div>
+                <div class="input-group">
+                    <label for="custom-rate-input">Custom Game Rate (Rs./frame) - Optional</label>
+                    <input type="number" id="custom-rate-input" class="form-input" min="1" step="0.5" placeholder="Use default rate">
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" data-close="start-session-modal">Cancel</button>
+                    <button class="btn btn-primary" id="confirm-start-session-btn">Begin Session</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: END SESSION RECEIPT -->
+    <div class="modal-overlay" id="receipt-modal">
+        <div class="modal-card receipt-modal-card">
+            <div class="modal-header">
+                <h2>Billing Invoice Receipt</h2>
+                <button class="close-modal" data-close="receipt-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="receipt-container">
+                    <div class="receipt-header">
+                        <i class="fa-solid fa-receipt receipt-logo"></i>
+                        <h3>SNOOKER RACK AI</h3>
+                        <p>Official Billing Session Receipt</p>
+                    </div>
+                    <div class="receipt-divider"></div>
+                    <div class="receipt-details">
+                        <div class="receipt-row">
+                            <span class="label">Customer Name:</span>
+                            <span class="val text-bold" id="receipt-customer">John Doe</span>
+                        </div>
+                        <div class="receipt-row">
+                            <span class="label">Table ID:</span>
+                            <span class="val" id="receipt-table">Table_1</span>
+                        </div>
+                        <div class="receipt-divider dotted"></div>
+                        <div class="receipt-row">
+                            <span class="label">Session Start:</span>
+                            <span class="val" id="receipt-start">10:00 AM</span>
+                        </div>
+                        <div class="receipt-row">
+                            <span class="label">Session End:</span>
+                            <span class="val" id="receipt-end">11:30 AM</span>
+                        </div>
+                        <div class="receipt-row">
+                            <span class="label">Duration:</span>
+                            <span class="val" id="receipt-duration">90 minutes</span>
+                        </div>
+                        <div class="receipt-divider dotted"></div>
+                        <div class="receipt-row">
+                            <span class="label">Total Frames/Games:</span>
+                            <span class="val text-bold" id="receipt-games">4 games</span>
+                        </div>
+                        <div class="receipt-row">
+                            <span class="label">Rate per Game:</span>
+                            <span class="val" id="receipt-rate">Rs. 10.00</span>
+                        </div>
+                        <div class="receipt-divider"></div>
+                        <div class="receipt-row total-row">
+                            <span class="label">TOTAL DUE:</span>
+                            <span class="val text-emerald text-bold" id="receipt-total">Rs. 40.00</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" onclick="window.print()"><i class="fa-solid fa-print"></i> Print Receipt</button>
+                    <button class="btn btn-primary" id="confirm-end-session-btn">Close Session</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: ADD TABLE -->
+    <div class="modal-overlay" id="add-table-modal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h2>Add New Snooker Table</h2>
+                <button class="close-modal" data-close="add-table-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="input-group">
+                    <label for="table-id-input">Unique Table ID (no spaces)</label>
+                    <input type="text" id="table-id-input" class="form-input" placeholder="e.g. Table_4" required>
+                </div>
+                <div class="input-group">
+                    <label for="table-name-input">Table Display Name</label>
+                    <input type="text" id="table-name-input" class="form-input" placeholder="e.g. Table 4" required>
+                </div>
+                <div class="input-group">
+                    <label for="table-source-input">CCTV Video Source (Webcam index, RTSP URL, or Video path)</label>
+                    <input type="text" id="table-source-input" class="form-input" placeholder="e.g., 0 or rtsp://ip/stream" required>
+                    <small class="helper-text">Enter '0' to use primary webcam. Or enter a local video file path for testing.</small>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-outline" data-close="add-table-modal">Cancel</button>
+                    <button class="btn btn-primary" id="confirm-add-table-btn">Create Table</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client-side Logic Script -->
+    <script src="app.js?v=1.2"></script>
+</body>
+</html>
