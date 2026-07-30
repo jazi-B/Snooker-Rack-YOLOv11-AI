@@ -391,8 +391,8 @@ class TableProcessor(threading.Thread):
             else:
                 # Active session: check start constraints
                 if not self.game_logic_started:
-                    # Logic starts ONLY when session is active AND a rack is detected (stable for 15 seconds with conf >= 60%)
-                    if smoothed_rack and max_conf >= 0.60:
+                    # Logic starts ONLY when session is active AND a rack is detected (stable for 15 seconds with conf >= 50%)
+                    if smoothed_rack and max_conf >= 0.50:
                         if self.rack_detection_start_time is None:
                             self.rack_detection_start_time = time.time()
                         elif time.time() - self.rack_detection_start_time >= 15.0:
@@ -400,7 +400,7 @@ class TableProcessor(threading.Thread):
                             self.rack_present = True
                             self.last_transition_time = time.time()
                             self.rack_detection_start_time = None
-                            print(f"[+] Table {self.table_id}: Active session and rack set (stable 15s, conf >= 60%). Game logic initialized.")
+                            print(f"[+] Table {self.table_id}: Active session and rack set (stable 15s, conf >= 50%). Game logic initialized.")
                     else:
                         self.rack_detection_start_time = None
                 else:
@@ -417,15 +417,15 @@ class TableProcessor(threading.Thread):
                             self.rack_detection_start_time = None
                     else:
                         # Rack is NOT present
-                        if smoothed_rack and max_conf >= 0.60:
-                            # Rack reset/re-formed: Only allowed after 5-minute cooldown (300 seconds) AND 15-second stability with conf >= 60%
+                        if smoothed_rack and max_conf >= 0.50:
+                            # Rack reset/re-formed: Only allowed after 5-minute cooldown (300 seconds) AND 15-second stability with conf >= 50%
                             if time.time() - self.last_transition_time >= 300.0:
                                 if self.rack_detection_start_time is None:
                                     self.rack_detection_start_time = time.time()
                                 elif time.time() - self.rack_detection_start_time >= 15.0:
                                     self.rack_present = True
                                     self.rack_detection_start_time = None
-                                    print(f"[+] Table {self.table_id}: Rack set again (stable 15s, conf >= 60%).")
+                                    print(f"[+] Table {self.table_id}: Rack set again (stable 15s, conf >= 50%).")
                             else:
                                 self.rack_detection_start_time = None
                         else:
